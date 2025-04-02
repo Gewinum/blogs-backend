@@ -17,7 +17,7 @@ namespace Blogs.API.Tests;
 public class SqlServerFixture : IAsyncLifetime
 {
     public MsSqlContainer MsSqlContainer { get; }
-    public string ConnectionString { get; private set; }
+    public string? ConnectionString { get; private set; }
 
     public SqlServerFixture()
     {
@@ -62,15 +62,19 @@ public class BlogTests : IClassFixture<SqlServerFixture>, IClassFixture<WebAppli
         {
             builder.ConfigureServices(services =>
             {
-                // Replace DbContext configuration to use our test container
-                services.Remove(services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>)));
+                var existingService =
+                    services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
+                
+                if (existingService != null)
+                {
+                    services.Remove(existingService);
+                }
                 
                 services.AddDbContext<ApplicationDbContext>(options =>
                 {
                     options.UseSqlServer(_sqlFixture.ConnectionString);
                 });
                 
-                // Apply migrations to ensure schema is created
                 using var scope = services.BuildServiceProvider().CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 dbContext.Database.Migrate();
